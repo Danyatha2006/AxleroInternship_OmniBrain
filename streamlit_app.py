@@ -1,12 +1,13 @@
 import streamlit as st
 
 from ui_components import display_assistant_response
+from orchestrator.graph import app
 
 
 # ============================================================
 # PAGE CONFIGURATION
 # ============================================================
-5
+
 st.set_page_config(
     page_title="AI Document Assistant",
     page_icon="🤖",
@@ -31,35 +32,6 @@ if "messages" not in st.session_state:
 
 
 # ============================================================
-# MOCK LANGGRAPH RESPONSE
-# ============================================================
-# This is only for independent UI testing.
-# Later, this function will be replaced by the actual
-# LangGraph Supervisor connection.
-# ============================================================
-
-def get_mock_response(question):
-    return {
-        "answer": f"You asked: **{question}**",
-
-        "sources": [
-            {
-                "document": "finance.pdf",
-                "page": 1
-            }
-        ],
-
-        "visuals": [],
-
-        "route": [
-            "Supervisor",
-            "Search",
-            "Final Response"
-        ]
-    }
-
-
-# ============================================================
 # DISPLAY PREVIOUS CHAT HISTORY
 # ============================================================
 
@@ -67,11 +39,9 @@ for message in st.session_state.messages:
 
     with st.chat_message(message["role"]):
 
-        # User message
         if message["role"] == "user":
             st.markdown(message["content"])
 
-        # Assistant message
         elif message["role"] == "assistant":
             display_assistant_response(message)
 
@@ -107,32 +77,98 @@ if prompt:
 
 
     # --------------------------------------------------------
-    # Get response
-    # --------------------------------------------------------
-    # Temporary mock response for independent testing.
+    # CALL LANGGRAPH SUPERVISOR
     # --------------------------------------------------------
 
-    result = get_mock_response(prompt)
+    try:
+
+        result = app.invoke(
+            {
+                "query": prompt
+            }
+        )
 
 
-    # --------------------------------------------------------
-    # Display assistant response
-    # --------------------------------------------------------
+        # ----------------------------------------------------
+        # Convert LangGraph result into UI format
+        # ----------------------------------------------------
 
-    with st.chat_message("assistant"):
-        display_assistant_response(result)
+        ui_result = {
+            "answer": result.get(
+                "final_response",
+                "No response was generated."
+            ),
 
+            "sources": result.get(
+                "sources",
+                []
+            ),
 
-    # --------------------------------------------------------
-    # Save assistant response to chat history
-    # --------------------------------------------------------
+            "visuals": result.get(
+                "visuals",
+                []
+            ),
 
-    st.session_state.messages.append(
-        {
-            "role": "assistant",
-            "answer": result["answer"],
-            "sources": result["sources"],
-            "visuals": result["visuals"],
-            "route": result["route"]
+            "route": [
+                "Supervisor",
+                result.get(
+                    "selected_agent",
+                    "Unknown"
+                ),
+                "Final Response"
+            ]
         }
-    )
+
+
+        # ----------------------------------------------------
+        # Display assistant response
+        # ----------------------------------------------------
+
+        with st.chat_message("assistant"):
+            display_assistant_response(ui_result)
+
+
+        # ----------------------------------------------------
+        # Save assistant response
+        # ----------------------------------------------------
+
+        st.session_state.messages.append(
+            {
+                "role": "assistant",
+                "answer": ui_result["answer"],
+                "sources": ui_result["sources"],
+                "visuals": ui_result["visuals"],
+                "route": ui_result["route"]
+            }
+        )
+
+
+    except Exception as error:
+
+        # ----------------------------------------------------
+        # Display error without exposing internal details
+        # ----------------------------------------------------
+
+        with st.chat_message("assistant"):
+            st.error(
+                "Sorry, I could not process your question."
+            )
+
+        st.session_state.messages.append(
+            {
+                "role": "assistant",
+                "answer": (
+                    "Sorry, I could not process "
+                    "your question."
+                ),
+                "sources": [],
+                "visuals": [],
+                "route": []
+            }
+        )
+
+        st.write(
+            "Please check the terminal for the "
+            "technical error."
+        )
+
