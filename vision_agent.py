@@ -1,54 +1,64 @@
 from vlm_service import ask_vlm
+import os
 
-
-def vision_agent(image_path, question, document=None, page=None, image_id=None):
+def vision_agent(image_result, question):
     """
-    Analyze a retrieved image using the LLaVA VLM
-    and return the answer with source information.
+    Analyze an image retrieved by the Search Agent.
+
+    image_result should contain image information such as:
+    image_path, document, page, image_id, and score.
     """
 
-    # Send image + question to LLaVA
+    image_path = image_result.get("image_path")
+    if not image_path:
+        raise ValueError("Image path is missing from image_result.")
+
+    if not os.path.isfile(image_path):
+        raise FileNotFoundError(f"Image file not found: {image_path}")
+
+    # Send the retrieved image and question to LLaVA
     answer = ask_vlm(
         image_path=image_path,
         question=question
     )
 
-    # Return structured result
-    result = {
+    # Return a structured result for LangGraph / other agents
+    return {
         "answer": answer,
-        "document": document,
-        "page": page,
-        "image_id": image_id,
-        "image_path": image_path
+        "document": image_result.get("document"),
+        "page": image_result.get("page"),
+        "image_id": image_result.get("image_id"),
+        "image_path": image_path,
+        "similarity_score": image_result.get("score"),
+        "analysis_type": "vision"
     }
-
-    return result
 
 
 if __name__ == "__main__":
 
-    image_path = (
-        "data/extracted_images/"
-        "page_1_image_1.jpeg"
-    )
+    # Simulated result from the Search Agent
+    retrieved_image = {
+        "image_path": "test_chart_crop.png",
+        "document": "test_revenue_chart.png",
+        "page": 1,
+        "image_id": 1,
+        "score": 0.95
+    }
 
     question = (
-        "What is shown in this image? "
-        "Describe the important visual information "
-        "and any readable text."
-    )
-
-    result = vision_agent(
-        image_path=image_path,
-        question=question,
-        document="sample.pdf",
-        page=1,
-        image_id=1
+        "Analyze this chart and identify the revenue "
+        "value for 2024. Give the value you can read "
+        "from the chart."
     )
 
     print("\n" + "=" * 60)
     print("VISION AGENT TEST")
     print("=" * 60)
+
+    result = vision_agent(
+        image_result=retrieved_image,
+        question=question
+    )
 
     print("\nAnswer:")
     print(result["answer"])
@@ -58,3 +68,5 @@ if __name__ == "__main__":
     print("Page:", result["page"])
     print("Image ID:", result["image_id"])
     print("Image Path:", result["image_path"])
+    print("Similarity Score:", result["similarity_score"])
+    print("Analysis Type:", result["analysis_type"])
