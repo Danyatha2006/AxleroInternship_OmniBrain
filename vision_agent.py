@@ -17,22 +17,28 @@ def vision_agent(image_result, question):
         raise FileNotFoundError(f"Image file not found: {image_path}")
 
     # Send the retrieved image and question to LLaVA
-    answer = ask_vlm(
-        image_path=image_path,
-        question=question
-    )
+    try:
+        answer = ask_vlm(
+            image_path=image_path,
+            question=question
+        )
+    except TimeoutError:
+        answer = "Vision model timed out while analyzing the image."
+    except Exception as e:
+        answer = f"Vision model error: {str(e)}"
 
     # Return a structured result for LangGraph / other agents
     return {
-        "answer": answer,
+    "answer": answer,
+    "source": {
         "document": image_result.get("document"),
         "page": image_result.get("page"),
         "image_id": image_result.get("image_id"),
         "image_path": image_path,
-        "similarity_score": image_result.get("score"),
-        "analysis_type": "vision"
-    }
-
+        "similarity_score": image_result.get("score")
+    },
+    "analysis_type": "vision"
+}
 
 if __name__ == "__main__":
 
