@@ -14,21 +14,27 @@ from app.services.document_text import (
 from app.services.text_chunker import chunk_text
 from app.services.embedding_service import generate_embeddings
 from app.services.vector_store import create_vector_index
+from app.services.qdrant_search import store_text_embeddings
 
 
 def process_document(document_id: str, file_path: str) -> str:
     """
     Extract PDF text, create chunks, generate embeddings,
-    create a vector index, store all document data,
-    and update processing status.
+    store the embeddings in both FAISS and Qdrant,
+    store document data, and update processing status.
     """
     try:
-        set_document_status(document_id, DocumentStatus.PROCESSING)
+        set_document_status(
+            document_id,
+            DocumentStatus.PROCESSING,
+        )
 
         pdf_path = Path(file_path)
 
         if not pdf_path.exists():
-            raise FileNotFoundError(f"Document not found: {pdf_path}")
+            raise FileNotFoundError(
+                f"Document not found: {pdf_path}"
+            )
 
         reader = PdfReader(pdf_path)
 
@@ -42,19 +48,34 @@ def process_document(document_id: str, file_path: str) -> str:
 
         extracted_text = "\n\n".join(extracted_pages)
 
-        set_document_text(document_id, extracted_text)
+        set_document_text(
+            document_id,
+            extracted_text,
+        )
 
         chunks = chunk_text(extracted_text)
 
-        set_document_chunks(document_id, chunks)
+        set_document_chunks(
+            document_id,
+            chunks,
+        )
 
         embeddings = generate_embeddings(chunks)
 
-        set_document_embeddings(document_id, embeddings)
+        set_document_embeddings(
+            document_id,
+            embeddings,
+        )
 
         create_vector_index(
             document_id,
             embeddings,
+        )
+
+        store_text_embeddings(
+            document_id=document_id,
+            chunks=chunks,
+            embeddings=embeddings,
         )
 
         print(
@@ -62,14 +83,25 @@ def process_document(document_id: str, file_path: str) -> str:
             f"extracted {len(extracted_text)} characters, "
             f"created {len(chunks)} chunks, "
             f"generated {len(embeddings)} embeddings, "
-            f"created vector index"
+            f"created FAISS index, "
+            f"stored embeddings in Qdrant"
         )
 
-        set_document_status(document_id, DocumentStatus.COMPLETED)
+        set_document_status(
+            document_id,
+            DocumentStatus.COMPLETED,
+        )
 
         return extracted_text
 
     except Exception as exc:
-        set_document_status(document_id, DocumentStatus.FAILED)
-        print(f"Document {document_id} processing failed: {exc}")
+        set_document_status(
+            document_id,
+            DocumentStatus.FAILED,
+        )
+
+        print(
+            f"Document {document_id} processing failed: {exc}"
+        )
+
         raise
