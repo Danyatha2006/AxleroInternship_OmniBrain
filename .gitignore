@@ -13,3 +13,7 @@ data/
 test_revenue_chart.png
 test_chart_crop.png
 test_2024_crop.png
+
+# Local Qdrant databases
+multimodal_qdrant_data/
+qdrant_data/
