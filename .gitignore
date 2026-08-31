@@ -1,5 +1,15 @@
-venv/
-qdrant_data/
+# Python
 __pycache__/
 *.pyc
-multimodal_qdrant_data/
+
+# Virtual environment
+venv/
+.venv/
+
+# Local data and extracted images
+data/
+
+# Temporary chart tests
+test_revenue_chart.png
+test_chart_crop.png
+test_2024_crop.png
