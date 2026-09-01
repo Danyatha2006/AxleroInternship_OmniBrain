@@ -10,11 +10,14 @@ from app.services.document_status import (
 )
 from app.services.document_text import get_document_text
 from app.services.search_service import search_document
+from app.services.document_images import extract_document_images
+
 
 router = APIRouter(
     prefix="/api/v1/documents",
     tags=["Documents"],
 )
+
 
 UPLOAD_DIR = Path(__file__).resolve().parents[2] / "uploads"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
@@ -43,15 +46,28 @@ async def upload_document(
 
     try:
         contents = await file.read()
+
+        if not contents:
+            raise HTTPException(
+                status_code=400,
+                detail="The uploaded PDF is empty.",
+            )
+
         file_path.write_bytes(contents)
 
-        set_document_status(document_id, DocumentStatus.PENDING)
+        set_document_status(
+            document_id,
+            DocumentStatus.PENDING,
+        )
 
         background_tasks.add_task(
             process_document,
             document_id,
             str(file_path),
         )
+
+    except HTTPException:
+        raise
 
     except Exception as exc:
         raise HTTPException(
@@ -67,7 +83,9 @@ async def upload_document(
 
 
 @router.get("/{document_id}/status")
-async def get_document_processing_status(document_id: str):
+async def get_document_processing_status(
+    document_id: str,
+):
     status = get_document_status(document_id)
 
     if status is None:
@@ -83,7 +101,9 @@ async def get_document_processing_status(document_id: str):
 
 
 @router.get("/{document_id}/text")
-async def get_document_extracted_text(document_id: str):
+async def get_document_extracted_text(
+    document_id: str,
+):
     status = get_document_status(document_id)
 
     if status is None:
@@ -95,7 +115,10 @@ async def get_document_extracted_text(document_id: str):
     if status != DocumentStatus.COMPLETED:
         raise HTTPException(
             status_code=409,
-            detail=f"Document processing is not completed. Current status: {status.value}",
+            detail=(
+                "Document processing is not completed. "
+                f"Current status: {status.value}"
+            ),
         )
 
     text = get_document_text(document_id)
@@ -130,7 +153,10 @@ async def search_document_content(
     if status != DocumentStatus.COMPLETED:
         raise HTTPException(
             status_code=409,
-            detail=f"Document processing is not completed. Current status: {status.value}",
+            detail=(
+                "Document processing is not completed. "
+                f"Current status: {status.value}"
+            ),
         )
 
     if not query.strip():
@@ -155,4 +181,55 @@ async def search_document_content(
         "document_id": document_id,
         "query": query,
         "results": results,
+    }
+
+
+@router.get("/{document_id}/images")
+async def get_document_images(
+    document_id: str,
+):
+    """
+    Return all images extracted from a completed PDF.
+    """
+
+    status = get_document_status(document_id)
+
+    if status is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Document not found.",
+        )
+
+    if status != DocumentStatus.COMPLETED:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Document processing is not completed. "
+                f"Current status: {status.value}"
+            ),
+        )
+
+    pdf_path = UPLOAD_DIR / f"{document_id}.pdf"
+
+    if not pdf_path.exists():
+        raise HTTPException(
+            status_code=404,
+            detail="Original PDF file not found.",
+        )
+
+    try:
+        images = extract_document_images(
+            document_id
+        )
+
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to extract document images.",
+        ) from exc
+
+    return {
+        "document_id": document_id,
+        "image_count": len(images),
+        "images": images,
     }

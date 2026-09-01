@@ -15,14 +15,29 @@ from app.services.text_chunker import chunk_text
 from app.services.embedding_service import generate_embeddings
 from app.services.vector_store import create_vector_index
 from app.services.qdrant_search import store_text_embeddings
+from app.services.document_images import extract_document_images
 
 
 def process_document(document_id: str, file_path: str) -> str:
     """
-    Extract PDF text, create chunks, generate embeddings,
-    store the embeddings in both FAISS and Qdrant,
-    store document data, and update processing status.
+    Process an uploaded PDF.
+
+    Processing pipeline:
+    1. Mark document as PROCESSING.
+    2. Validate the PDF path.
+    3. Extract text from the PDF.
+    4. Store extracted text.
+    5. Split text into chunks.
+    6. Generate embeddings.
+    7. Store embeddings in FAISS.
+    8. Store embeddings in Qdrant.
+    9. Extract/render document pages as images.
+    10. Mark document as COMPLETED.
+
+    Returns:
+        Extracted document text.
     """
+
     try:
         set_document_status(
             document_id,
@@ -36,6 +51,15 @@ def process_document(document_id: str, file_path: str) -> str:
                 f"Document not found: {pdf_path}"
             )
 
+        if pdf_path.suffix.lower() != ".pdf":
+            raise ValueError(
+                f"Expected a PDF file, got: {pdf_path.suffix}"
+            )
+
+        # ---------------------------------------------------------
+        # 1. Extract PDF text
+        # ---------------------------------------------------------
+
         reader = PdfReader(pdf_path)
 
         extracted_pages = []
@@ -44,14 +68,25 @@ def process_document(document_id: str, file_path: str) -> str:
             text = page.extract_text()
 
             if text:
-                extracted_pages.append(text.strip())
+                cleaned_text = text.strip()
+
+                if cleaned_text:
+                    extracted_pages.append(cleaned_text)
 
         extracted_text = "\n\n".join(extracted_pages)
+
+        # ---------------------------------------------------------
+        # 2. Store extracted text
+        # ---------------------------------------------------------
 
         set_document_text(
             document_id,
             extracted_text,
         )
+
+        # ---------------------------------------------------------
+        # 3. Create text chunks
+        # ---------------------------------------------------------
 
         chunks = chunk_text(extracted_text)
 
@@ -60,6 +95,10 @@ def process_document(document_id: str, file_path: str) -> str:
             chunks,
         )
 
+        # ---------------------------------------------------------
+        # 4. Generate embeddings
+        # ---------------------------------------------------------
+
         embeddings = generate_embeddings(chunks)
 
         set_document_embeddings(
@@ -67,10 +106,18 @@ def process_document(document_id: str, file_path: str) -> str:
             embeddings,
         )
 
+        # ---------------------------------------------------------
+        # 5. Store embeddings in FAISS
+        # ---------------------------------------------------------
+
         create_vector_index(
             document_id,
             embeddings,
         )
+
+        # ---------------------------------------------------------
+        # 6. Store embeddings in Qdrant
+        # ---------------------------------------------------------
 
         store_text_embeddings(
             document_id=document_id,
@@ -78,14 +125,31 @@ def process_document(document_id: str, file_path: str) -> str:
             embeddings=embeddings,
         )
 
+        # ---------------------------------------------------------
+        # 7. Extract/render document pages as images
+        # ---------------------------------------------------------
+
+        extracted_images = extract_document_images(
+            document_id
+        )
+
+        # ---------------------------------------------------------
+        # 8. Log processing information
+        # ---------------------------------------------------------
+
         print(
             f"Document {document_id}: "
             f"extracted {len(extracted_text)} characters, "
             f"created {len(chunks)} chunks, "
             f"generated {len(embeddings)} embeddings, "
             f"created FAISS index, "
-            f"stored embeddings in Qdrant"
+            f"stored embeddings in Qdrant, "
+            f"extracted {len(extracted_images)} document images"
         )
+
+        # ---------------------------------------------------------
+        # 9. Mark document as completed
+        # ---------------------------------------------------------
 
         set_document_status(
             document_id,
