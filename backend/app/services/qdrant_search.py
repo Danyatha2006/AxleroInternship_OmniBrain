@@ -1,6 +1,11 @@
 from uuid import uuid4
 
-from qdrant_client.models import PointStruct
+from qdrant_client.models import (
+    FieldCondition,
+    Filter,
+    MatchValue,
+    PointStruct,
+)
 
 from app.services.embedding_service import generate_embeddings
 from app.services.qdrant_service import (
@@ -63,9 +68,11 @@ def store_text_embeddings(
 def search_qdrant(
     query: str,
     top_k: int = 5,
+    document_id: str | None = None,
 ) -> list[dict]:
     """
-    Search the Qdrant text collection using a natural-language query.
+    Search the Qdrant text collection using a natural-language query,
+    optionally restricted to a specific document.
     """
 
     query = query.strip()
@@ -79,9 +86,22 @@ def search_qdrant(
 
     client = get_qdrant_client()
 
+    query_filter = None
+
+    if document_id:
+        query_filter = Filter(
+            must=[
+                FieldCondition(
+                    key="document_id",
+                    match=MatchValue(value=document_id),
+                )
+            ]
+        )
+
     results = client.query_points(
         collection_name=TEXT_COLLECTION_NAME,
         query=query_embedding,
+        query_filter=query_filter,
         limit=top_k,
         with_payload=True,
     )
