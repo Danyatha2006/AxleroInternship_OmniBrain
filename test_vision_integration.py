@@ -32,3 +32,17 @@ print(result["source"])
 
 print("\nAnalysis Type:")
 print(result["analysis_type"])
+
+
+# Validate Vision Agent output structure
+assert "answer" in result
+assert "source" in result
+assert "analysis_type" in result
+
+assert result["source"]["document"] == "sample.pdf"
+assert result["source"]["page"] == 1
+assert result["source"]["image_id"] == 1
+
+assert result["analysis_type"] == "vision"
+
+print("\n✓ Search → Vision interface validation passed!")
