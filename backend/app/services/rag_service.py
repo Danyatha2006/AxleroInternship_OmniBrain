@@ -12,7 +12,6 @@ def clean_text(text: str) -> str:
     if not text:
         return ""
 
-    # Replace newlines and repeated whitespace with single spaces.
     text = text.replace("\n", " ")
     text = re.sub(r"\s+", " ", text)
 
@@ -27,8 +26,7 @@ def retrieve_context(
     """
     Retrieve relevant document chunks from Qdrant.
 
-    The highest-scoring result is used as the primary
-    context for answer generation.
+    Kept for backward compatibility with existing callers.
     """
 
     results = search_qdrant(
@@ -37,10 +35,23 @@ def retrieve_context(
         document_id=document_id,
     )
 
+    return build_context_from_results(results)
+
+
+def build_context_from_results(
+    results: list[dict],
+) -> tuple[str, list[dict]]:
+    """
+    Build LLM context from already-retrieved search results.
+
+    This allows LangGraph/SearchAgent results to be passed
+    directly to the RAG layer without performing another
+    Qdrant search.
+    """
+
     if not results:
         return "", []
 
-    # Qdrant results are already returned in relevance order.
     best_result = results[0]
 
     text = best_result.get("text", "")
@@ -56,38 +67,27 @@ def retrieve_context(
     return context, results
 
 
-def answer_question(
-    document_id: str,
+def generate_answer_from_context(
     question: str,
-    top_k: int = 5,
+    context: str,
     conversation_history: list[dict] | None = None,
-) -> tuple[str, list[dict]]:
+) -> str:
     """
-    Generate an answer using Qdrant-retrieved document context
-    and the local LLM.
+    Generate an answer from already-retrieved document context.
     """
 
     question = question.strip()
 
     if not question:
-        return "Please provide a question.", []
-
-    conversation_history = conversation_history or []
-
-    # Retrieve the most relevant document context.
-    context, sources = retrieve_context(
-        document_id=document_id,
-        query=question,
-        top_k=top_k,
-    )
+        return "Please provide a question."
 
     if not context:
         return (
-            "I could not find this information in the document.",
-            [],
+            "I could not find this information in the document."
         )
 
-    # Add recent conversation history only when available.
+    conversation_history = conversation_history or []
+
     history_context = ""
 
     if conversation_history:
@@ -116,15 +116,50 @@ def answer_question(
                 + "\n\n".join(history_parts)
             )
 
-    # Use the best retrieved chunk as the main document context.
     combined_context = context
 
     if history_context:
         combined_context += history_context
 
-    answer = generate_answer(
+    return generate_answer(
         context=combined_context,
         question=question,
+    )
+
+
+def answer_question(
+    document_id: str,
+    question: str,
+    top_k: int = 5,
+    conversation_history: list[dict] | None = None,
+) -> tuple[str, list[dict]]:
+    """
+    Existing RAG entry point.
+
+    Performs retrieval and then answer generation.
+    """
+
+    question = question.strip()
+
+    if not question:
+        return "Please provide a question.", []
+
+    context, sources = retrieve_context(
+        document_id=document_id,
+        query=question,
+        top_k=top_k,
+    )
+
+    if not context:
+        return (
+            "I could not find this information in the document.",
+            [],
+        )
+
+    answer = generate_answer_from_context(
+        question=question,
+        context=context,
+        conversation_history=conversation_history,
     )
 
     return answer, sources

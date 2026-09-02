@@ -6,7 +6,7 @@ from app.services.document_status import (
     DocumentStatus,
     get_document_status,
 )
-from app.services.rag_service import answer_question
+from app.graph.supervisor import search_graph
 
 
 router = APIRouter(
@@ -71,11 +71,22 @@ async def chat(request: ChatRequest):
     try:
         conversation_history = get_history(document_id)
 
-        answer, source_results = answer_question(
-            document_id=document_id,
-            question=question,
-            top_k=request.top_k,
-            conversation_history=conversation_history,
+        graph_result = search_graph.invoke(
+            {
+                "query": question,
+                "document_id": document_id,
+                "top_k": request.top_k,
+            }
+        )
+
+        source_results = graph_result.get(
+            "search_results",
+            [],
+        )
+
+        answer = graph_result.get(
+            "final_answer",
+            "I could not find this information in the document.",
         )
 
         add_message(
