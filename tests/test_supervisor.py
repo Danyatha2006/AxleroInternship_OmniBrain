@@ -23,3 +23,15 @@ def test_route_query_sql_keyword():
 
 def test_route_query_general_question():
     assert route_query("Tell me about Python") == "search"
+
+
+def test_route_query_case_insensitive():
+    assert route_query("SHOW ME A CHART") == "vision"
+
+
+def test_route_query_sql_keyword():
+    assert route_query("What is the total revenue?") == "sql"
+
+
+def test_route_query_general_question():
+    assert route_query("Tell me about Python") == "search"
