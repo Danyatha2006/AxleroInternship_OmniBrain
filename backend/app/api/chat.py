@@ -96,13 +96,17 @@ async def chat(request: ChatRequest):
         )
 
         sources = [
-            {
-                "chunk_index": result["chunk_index"],
-                "score": result["score"],
-                "text": result["text"],
-            }
-            for result in source_results
-        ]
+    {
+        "chunk_index": result.get("chunk_index"),
+        "score": result.get("score"),
+        "text": result.get("text", ""),
+        "document_name": result.get("document_name"),
+        "page_number": result.get("page_number"),
+        "content_type": result.get("content_type", "text"),
+        "image_reference": result.get("image_reference"),
+    }
+    for result in source_results
+]
 
         return {
             "document_id": document_id,

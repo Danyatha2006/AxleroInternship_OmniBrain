@@ -1,5 +1,3 @@
-from typing import Any
-
 from langgraph.graph import END, START, StateGraph
 
 from app.graph.state import OmniBrainState
@@ -8,16 +6,14 @@ from app.services.rag_service import (
     build_context_from_results,
     generate_answer_from_context,
 )
+from app.vision.vision_agent import VisionAgent
 
 
 search_agent = SearchAgent()
+vision_agent = VisionAgent()
 
 
-def search_node(state: OmniBrainState) -> dict[str, Any]:
-    """
-    LangGraph node responsible for executing the Search Agent.
-    """
-
+def search_node(state: OmniBrainState):
     query = state.get("query", "")
     top_k = state.get("top_k", 5)
     document_id = state.get("document_id")
@@ -29,46 +25,73 @@ def search_node(state: OmniBrainState) -> dict[str, Any]:
     )
 
     return {
-        "search_results": result.get(
-            "results",
-            [],
-        )
+        "search_results": result.get("results", [])
     }
 
 
-def context_node(state: OmniBrainState) -> dict[str, Any]:
-    """
-    Build LLM context from Search Agent results.
-    """
+def vision_node(state: OmniBrainState):
+    query = state.get("query", "")
+    search_results = state.get("search_results", [])
 
-    search_results = state.get(
-        "search_results",
-        [],
-    )
+    vision_results = []
 
-    context, _ = build_context_from_results(
-        search_results,
-    )
+    for result in search_results:
+        image_reference = result.get("image_reference")
+
+        if not image_reference:
+            continue
+
+        vision_result = vision_agent.run(
+            image_reference=image_reference,
+            query=query,
+        )
+
+        vision_results.append(vision_result)
 
     return {
-        "context": context,
+        "vision_results": vision_results
     }
 
 
-def answer_node(state: OmniBrainState) -> dict[str, Any]:
-    """
-    Generate the final answer from retrieved context.
-    """
+def context_node(state: OmniBrainState):
+    search_results = state.get("search_results", [])
+    vision_results = state.get("vision_results", [])
 
-    query = state.get(
-        "query",
-        "",
-    )
+    context, _ = build_context_from_results(search_results)
 
-    context = state.get(
-        "context",
-        "",
-    )
+    visual_parts = []
+
+    for result in vision_results:
+        answer = result.get("answer", "").strip()
+
+        if not answer:
+            continue
+
+        image_reference = result.get("image_reference", "")
+
+        visual_parts.append(
+            "Visual information:\n"
+            + answer
+            + "\nImage reference: "
+            + image_reference
+        )
+
+    if visual_parts:
+        visual_context = "\n\n" + "\n\n".join(visual_parts)
+
+        if context:
+            context += visual_context
+        else:
+            context = visual_context.strip()
+
+    return {
+        "context": context
+    }
+
+
+def answer_node(state: OmniBrainState):
+    query = state.get("query", "")
+    context = state.get("context", "")
 
     answer = generate_answer_from_context(
         question=query,
@@ -76,62 +99,24 @@ def answer_node(state: OmniBrainState) -> dict[str, Any]:
     )
 
     return {
-        "final_answer": answer,
+        "final_answer": answer
     }
 
 
 def build_search_graph():
-    """
-    Build the LangGraph workflow.
-
-    Flow:
-        START
-          ↓
-        SearchAgent
-          ↓
-        Context Builder
-          ↓
-        Answer Generator
-          ↓
-        END
-    """
 
     graph = StateGraph(OmniBrainState)
 
-    graph.add_node(
-        "search",
-        search_node,
-    )
+    graph.add_node("search", search_node)
+    graph.add_node("vision", vision_node)
+    graph.add_node("context", context_node)
+    graph.add_node("answer", answer_node)
 
-    graph.add_node(
-        "context",
-        context_node,
-    )
-
-    graph.add_node(
-        "answer",
-        answer_node,
-    )
-
-    graph.add_edge(
-        START,
-        "search",
-    )
-
-    graph.add_edge(
-        "search",
-        "context",
-    )
-
-    graph.add_edge(
-        "context",
-        "answer",
-    )
-
-    graph.add_edge(
-        "answer",
-        END,
-    )
+    graph.add_edge(START, "search")
+    graph.add_edge("search", "vision")
+    graph.add_edge("vision", "context")
+    graph.add_edge("context", "answer")
+    graph.add_edge("answer", END)
 
     return graph.compile()
 
