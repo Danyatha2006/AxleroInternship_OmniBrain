@@ -210,3 +210,7 @@ Langfuse will be used to track:
 
 \- End-to-end execution flow
 
+
+## Langfuse Observability
+
+Langfuse is integrated to monitor retrieval, agent execution, LLM generation, token usage, and latency across the OmniBrain workflow.
