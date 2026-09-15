@@ -29,3 +29,12 @@ def test_vision_routing():
     assert result["selected_agent"] == "vision"
     assert "agent_result" in result
     assert "final_response" in result
+
+def test_search_general_query():
+    result = app.invoke({
+        "query": "Explain artificial intelligence"
+    })
+
+    assert result["selected_agent"] == "search"
+    assert "agent_result" in result
+    assert "final_response" in result
