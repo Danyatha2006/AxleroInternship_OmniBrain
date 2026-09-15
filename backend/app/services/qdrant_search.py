@@ -15,7 +15,7 @@ from app.services.qdrant_service import (
 
 
 MAX_TOP_K = 10
-MINIMUM_SCORE = 0.20
+MINIMUM_SCORE = 0.0
 
 
 def store_text_embeddings(
