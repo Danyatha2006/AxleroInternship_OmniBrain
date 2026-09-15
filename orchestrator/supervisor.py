@@ -25,6 +25,9 @@ def route_query(query: str) -> AgentName:
         "bar",
         "pie chart",
         "line graph",
+        "plot",
+        "visualization",
+        "picture",
     ]
 
     sql_keywords = [
@@ -40,6 +43,10 @@ def route_query(query: str) -> AgentName:
         "count",
         "revenue",
         "sales",
+        "database",
+        "profit",
+        "price",
+        "percentage",
         "2024",
         "2025",
     ]
