@@ -11,3 +11,15 @@ def test_route_query_sql():
 
 def test_route_query_vision():
     assert route_query("Show me the image diagram") == "vision"
+
+
+def test_route_query_case_insensitive():
+    assert route_query("SHOW ME A CHART") == "vision"
+
+
+def test_route_query_sql_keyword():
+    assert route_query("What is the total revenue?") == "sql"
+
+
+def test_route_query_general_question():
+    assert route_query("Tell me about Python") == "search"
