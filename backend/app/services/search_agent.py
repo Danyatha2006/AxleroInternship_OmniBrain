@@ -1,14 +1,12 @@
 from typing import Any
 
 from app.services.qdrant_search import search_qdrant
+from app.services.langfuse_service import langfuse
 
 
 class SearchAgent:
     """
     Search Agent responsible for semantic document retrieval.
-
-    The agent delegates the actual vector search to qdrant_search.py
-    and exposes a clean interface for higher-level orchestration.
     """
 
     def run(
@@ -17,17 +15,6 @@ class SearchAgent:
         top_k: int = 5,
         document_id: str | None = None,
     ) -> dict[str, Any]:
-        """
-        Execute semantic search.
-
-        Args:
-            query: User's search query.
-            top_k: Maximum number of results to return.
-            document_id: Optional document filter.
-
-        Returns:
-            Structured search response containing the query and results.
-        """
 
         if not isinstance(query, str):
             return {
@@ -55,31 +42,62 @@ class SearchAgent:
             if not document_id:
                 document_id = None
 
-        results = search_qdrant(
-            query=query,
-            top_k=top_k,
-            document_id=document_id,
-        )
+        with langfuse.start_as_current_observation(
+            as_type="retriever",
+            name="qdrant-document-retrieval",
+            input={
+                "query": query,
+                "top_k": top_k,
+                "document_id": document_id,
+            },
+        ) as retrieval:
 
-        structured_results: list[dict[str, Any]] = []
+            results = search_qdrant(
+                query=query,
+                top_k=top_k,
+                document_id=document_id,
+            )
 
-        for result in results:
-            structured_results.append(
-                {
-                    "score": result.get("score"),
-                    "text": result.get("text", ""),
-                    "document_id": result.get("document_id"),
-                    "document_name": result.get("document_name"),
-                    "page_number": result.get("page_number"),
-                    "chunk_index": result.get("chunk_index"),
-                    "content_type": result.get(
-                        "content_type",
-                        "text",
+            structured_results: list[dict[str, Any]] = []
+
+            for result in results:
+                structured_results.append(
+                    {
+                        "score": result.get("score"),
+                        "text": result.get("text", ""),
+                        "document_id": result.get(
+                            "document_id"
+                        ),
+                        "document_name": result.get(
+                            "document_name"
+                        ),
+                        "page_number": result.get(
+                            "page_number"
+                        ),
+                        "chunk_index": result.get(
+                            "chunk_index"
+                        ),
+                        "content_type": result.get(
+                            "content_type",
+                            "text",
+                        ),
+                        "image_reference": result.get(
+                            "image_reference"
+                        ),
+                    }
+                )
+
+            retrieval.update(
+                output={
+                    "result_count": len(
+                        structured_results
                     ),
-                    "image_reference": result.get(
-                        "image_reference"
-                    ),
-                }
+                    "results": structured_results,
+                },
+                metadata={
+                    "retrieval_type": "qdrant",
+                    "top_k": top_k,
+                },
             )
 
         return {
