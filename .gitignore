@@ -9,4 +9,9 @@ __pycache__/
 .DS_Store
 
 data/input/*.pdf
-```
+```# Generated/runtime files
+backend/data/
+backend/extracted_images/
+backend/uploads/
+data/output/test/
+qdrant_storage/
