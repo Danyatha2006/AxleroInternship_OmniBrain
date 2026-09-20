@@ -1,5 +1,76 @@
 # AxleroInternship_OmniBrain
-# Basic PDF Ingestion Pipeline
+# OmniBrain – AI Document Assistant
+
+OmniBrain is an AI-powered document assistant that allows users to ask questions about complex PDF documents such as financial reports. It uses document ingestion, semantic search, LangGraph, Qdrant, RAG, Vision processing, and Self-RAG to provide relevant answers.
+
+## Project Progress
+
+### Week 1 – PDF Ingestion
+- Built a PDF ingestion pipeline using PyMuPDF.
+- Extracted text from PDF pages.
+- Detected pages with low or missing text for visual processing.
+- Generated structured JSON outputs for extracted content and visual pages.
+- Tested the pipeline using a financial report.
+
+### Week 2 – Streamlit UI
+- Developed the Streamlit chat interface.
+- Added user question input and chat history.
+- Added display of final answers.
+- Added document/page source information.
+- Added support for displaying images/charts.
+- Connected the UI with the LangGraph workflow.
+- Added execution status without exposing private chain-of-thought.
+
+### Week 3 – Backend & Retrieval
+- Integrated the FastAPI backend.
+- Implemented LangGraph-based workflow orchestration.
+- Integrated Qdrant for semantic vector search.
+- Implemented the Search Agent for document retrieval.
+- Integrated document processing and Vision Agent.
+- Implemented RAG-based context building and answer generation.
+- Added Langfuse for workflow and retrieval observability.
+- Tested document-question answering using a financial document.
+
+### Week 4 – Self-RAG & Evaluation
+- Implemented retrieval relevance checking.
+- Added a similarity threshold of 0.40.
+- Added query rewriting when the initial retrieval is not relevant.
+- Limited retrieval to a maximum of two attempts.
+- Added handling for cases where no relevant information is found.
+- Tested relevant, poorly phrased, ambiguous, and unrelated questions.
+- Recorded retrieval attempts and similarity scores.
+- Identified borderline retrieval cases for future improvement.
+
+## Self-RAG Flow
+
+User Question  
+↓  
+Qdrant Retrieval  
+↓  
+Relevance Check  
+↓  
+Relevant → Context → Answer  
+↓  
+Not Relevant → Query Rewrite → Retrieval Again  
+↓  
+Still Not Relevant → No Relevant Information
+
+## Technologies Used
+
+- Python
+- FastAPI
+- Streamlit
+- LangGraph
+- Qdrant
+- PyMuPDF
+- RAG
+- Hugging Face Transformers
+- Langfuse
+- Vision Model
+
+## Current Status
+
+The project currently supports PDF ingestion, semantic document retrieval, AI-based question answering, visual processing, Streamlit interaction, and Self-RAG-based retrieval evaluation.
 
 ## Project Overview
 
