@@ -9,6 +9,21 @@ class GuardrailService:
         config = RailsConfig.from_path(CONFIG_PATH)
         self.rails = LLMRails(config)
 
+    def is_relevant(self, message: str, context: str) -> bool:
+        question_words = {
+            word.lower().strip(".,?!")
+            for word in message.split()
+            if len(word) > 3
+        }
+
+        context_words = {
+            word.lower().strip(".,?!")
+            for word in context.split()
+            if len(word) > 3
+        }
+
+        return bool(question_words & context_words)
+
     def check(self, message: str, context: str = "") -> str:
         message = message.strip()
 
@@ -38,6 +53,12 @@ class GuardrailService:
             return (
                 "I could not find sufficient information "
                 "in the provided documents."
+            )
+                # Check whether the question is related to the document
+        if not self.is_relevant(message, context):
+            return (
+                "I can only answer questions based on "
+                "the provided documents."
             )
 
         # Pass valid document-grounded requests to NeMo Guardrails
