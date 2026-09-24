@@ -197,4 +197,3 @@ It does not currently include:
 * Vector databases
 * Retrieval-Augmented Generation (RAG)
 * AI question answering
-*
