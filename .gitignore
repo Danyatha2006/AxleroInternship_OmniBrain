@@ -21,8 +21,10 @@ env/
 .DS_Store
 Thumbs.db
 
-# Qdrant local database
+# Qdrant local databases
 qdrant_storage/
+multimodal_qdrant_data/
+qdrant_data/
 
 # Generated/runtime files
 backend/data/
@@ -30,5 +32,13 @@ backend/extracted_images/
 backend/uploads/
 data/output/test/
 
+# Local data
+data/
+
 # Input PDFs
 data/input/*.pdf
+
+# Temporary chart tests
+test_revenue_chart.png
+test_chart_crop.png
+test_2024_crop.png
