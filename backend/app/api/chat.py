@@ -58,9 +58,7 @@ async def chat(request: ChatRequest):
             detail="Question cannot be empty.",
         )
 
-    status = get_document_status(
-        document_id
-    )
+    status = get_document_status(document_id)
 
     if status is None:
         raise HTTPException(
@@ -78,10 +76,7 @@ async def chat(request: ChatRequest):
         )
 
     try:
-
-        conversation_history = get_history(
-            document_id
-        )
+        conversation_history = get_history(document_id)
 
         with langfuse.start_as_current_observation(
             as_type="chain",
@@ -93,7 +88,7 @@ async def chat(request: ChatRequest):
             },
             metadata={
                 "component": "FastAPI",
-                "workflow": "RAG",
+                "workflow": "Self-RAG",
             },
         ) as trace:
 
@@ -116,6 +111,22 @@ async def chat(request: ChatRequest):
                     "I could not find this information "
                     "in the document."
                 ),
+            )
+
+            # Self-RAG execution information
+            retrieval_attempt = graph_result.get(
+                "retrieval_attempt",
+                0,
+            )
+
+            retrieval_relevant = graph_result.get(
+                "retrieval_relevant",
+                False,
+            )
+
+            rewritten_query = graph_result.get(
+                "rewritten_query",
+                "",
             )
 
             add_message(
@@ -157,6 +168,12 @@ async def chat(request: ChatRequest):
                 "document_id": document_id,
                 "question": question,
                 "answer": answer,
+
+                # Self-RAG evaluation information
+                "retrieval_attempt": retrieval_attempt,
+                "retrieval_relevant": retrieval_relevant,
+                "rewritten_query": rewritten_query,
+
                 "sources": sources,
                 "history": get_history(
                     document_id
@@ -167,6 +184,9 @@ async def chat(request: ChatRequest):
                 output={
                     "answer": answer,
                     "source_count": len(sources),
+                    "retrieval_attempt": retrieval_attempt,
+                    "retrieval_relevant": retrieval_relevant,
+                    "rewritten_query": rewritten_query,
                 },
             )
 

@@ -1,18 +1,17 @@
 # Python
 __pycache__/
 *.py[cod]
+*.pyc
 
-# Virtual environment
+# Virtual environments
 venv/
 .venv/
+env/
 
 # Environment variables
 .env
 
-# Qdrant local database
-qdrant_storage/
-
-# Python test/cache
+# Testing/cache
 .pytest_cache/
 
 # IDE
@@ -20,6 +19,16 @@ qdrant_storage/
 
 # OS
 .DS_Store
-Thumbs.db__pycache__/
-*.pyc
-.env
+Thumbs.db
+
+# Qdrant local database
+qdrant_storage/
+
+# Generated/runtime files
+backend/data/
+backend/extracted_images/
+backend/uploads/
+data/output/test/
+
+# Input PDFs
+data/input/*.pdf

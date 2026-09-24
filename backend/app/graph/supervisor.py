@@ -2,6 +2,8 @@ from langgraph.graph import END, START, StateGraph
 
 from app.graph.state import OmniBrainState
 from app.services.search_agent import SearchAgent
+from app.services.relevance_checker import is_relevant
+from app.services.query_rewriter import rewrite_query
 from app.services.rag_service import (
     build_context_from_results,
     generate_answer_from_context,
@@ -14,10 +16,23 @@ search_agent = SearchAgent()
 vision_agent = VisionAgent()
 
 
+# Maximum number of retrieval attempts:
+# 1 = original query
+# 2 = rewritten query
+MAX_RETRIEVAL_ATTEMPTS = 2
+
+
 def search_node(state: OmniBrainState):
-    query = state.get("query", "")
+    """
+    Retrieve document chunks using the original query
+    or the rewritten query after a failed relevance check.
+    """
+
+    query = state.get("rewritten_query") or state.get("query", "")
     top_k = state.get("top_k", 5)
     document_id = state.get("document_id")
+
+    current_attempt = state.get("retrieval_attempt", 0) + 1
 
     result = search_agent.run(
         query=query,
@@ -26,7 +41,67 @@ def search_node(state: OmniBrainState):
     )
 
     return {
-        "search_results": result.get("results", [])
+        "search_results": result.get("results", []),
+        "retrieval_attempt": current_attempt,
+    }
+
+
+def relevance_node(state: OmniBrainState):
+    """
+    Check whether the retrieved results are relevant enough.
+    """
+
+    search_results = state.get("search_results", [])
+
+    relevant = is_relevant(search_results)
+
+    return {
+        "retrieval_relevant": relevant,
+    }
+
+
+def rewrite_node(state: OmniBrainState):
+    """
+    Rewrite the original user query when retrieval
+    is not relevant enough.
+    """
+
+    query = state.get("query", "")
+
+    rewritten = rewrite_query(query)
+
+    return {
+        "rewritten_query": rewritten,
+    }
+
+
+def relevance_router(state: OmniBrainState):
+    """
+    Decide what to do after relevance checking.
+    """
+
+    if state.get("retrieval_relevant", False):
+        return "relevant"
+
+    attempt = state.get("retrieval_attempt", 1)
+
+    if attempt >= MAX_RETRIEVAL_ATTEMPTS:
+        return "no_relevant_information"
+
+    return "rewrite"
+
+
+def no_relevant_information_node(state: OmniBrainState):
+    """
+    Handle the case where no relevant information was found
+    after the allowed retrieval attempts.
+    """
+
+    return {
+        "final_answer": (
+            "I could not find relevant information in the "
+            "available document for this question."
+        )
     }
 
 
@@ -144,9 +219,25 @@ def build_search_graph():
 
     graph = StateGraph(OmniBrainState)
 
+    # Nodes
     graph.add_node(
         "search",
         search_node,
+    )
+
+    graph.add_node(
+        "relevance",
+        relevance_node,
+    )
+
+    graph.add_node(
+        "rewrite",
+        rewrite_node,
+    )
+
+    graph.add_node(
+        "no_relevant_information",
+        no_relevant_information_node,
     )
 
     graph.add_node(
@@ -164,6 +255,7 @@ def build_search_graph():
         answer_node,
     )
 
+    # Initial retrieval
     graph.add_edge(
         START,
         "search",
@@ -171,9 +263,27 @@ def build_search_graph():
 
     graph.add_edge(
         "search",
-        "vision",
+        "relevance",
     )
 
+    # Self-RAG decision
+    graph.add_conditional_edges(
+        "relevance",
+        relevance_router,
+        {
+            "relevant": "vision",
+            "rewrite": "rewrite",
+            "no_relevant_information": "no_relevant_information",
+        },
+    )
+
+    # Query rewriting
+    graph.add_edge(
+        "rewrite",
+        "search",
+    )
+
+    # Vision -> Context -> Answer
     graph.add_edge(
         "vision",
         "context",
@@ -186,6 +296,12 @@ def build_search_graph():
 
     graph.add_edge(
         "answer",
+        END,
+    )
+
+    # No relevant information
+    graph.add_edge(
+        "no_relevant_information",
         END,
     )
 
