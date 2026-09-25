@@ -1,199 +1,54 @@
-# AxleroInternship_OmniBrain
-# OmniBrain – AI Document Assistant
+# OmniBrain Frontend — Complete UI/UX
 
-OmniBrain is an AI-powered document assistant that allows users to ask questions about complex PDF documents such as financial reports. It uses document ingestion, semantic search, LangGraph, Qdrant, RAG, Vision processing, and Self-RAG to provide relevant answers.
+A polished React/Vite frontend for the OmniBrain Agentic Multi-Modal RAG Orchestrator.
 
-## Project Progress
+## What is included
 
-### Week 1 – PDF Ingestion
-- Built a PDF ingestion pipeline using PyMuPDF.
-- Extracted text from PDF pages.
-- Detected pages with low or missing text for visual processing.
-- Generated structured JSON outputs for extracted content and visual pages.
-- Tested the pipeline using a financial report.
+- PDF upload with drag-and-drop
+- Document processing / indexing status
+- AI document chat
+- Suggested questions and quick actions
+- Exact-page citation cards
+- Retrieved image / chart references
+- Image gallery and extracted-visual panel
+- Document analytics: pages, words, sentences, tables, images
+- Agent routing / reasoning trace panel
+- Self-RAG retry indicator
+- Guardrails status
+- Latency / token / retrieval metrics
+- Conversation history in the current session
+- Responsive desktop + mobile layout
+- Demo mode so the UI can be shown before backend integration
+- One central API adapter for easy FastAPI integration
 
-### Week 2 – Streamlit UI
-- Developed the Streamlit chat interface.
-- Added user question input and chat history.
-- Added display of final answers.
-- Added document/page source information.
-- Added support for displaying images/charts.
-- Connected the UI with the LangGraph workflow.
-- Added execution status without exposing private chain-of-thought.
-
-### Week 3 – Backend & Retrieval
-- Integrated the FastAPI backend.
-- Implemented LangGraph-based workflow orchestration.
-- Integrated Qdrant for semantic vector search.
-- Implemented the Search Agent for document retrieval.
-- Integrated document processing and Vision Agent.
-- Implemented RAG-based context building and answer generation.
-- Added Langfuse for workflow and retrieval observability.
-- Tested document-question answering using a financial document.
-
-### Week 4 – Self-RAG & Evaluation
-- Implemented retrieval relevance checking.
-- Added a similarity threshold of 0.40.
-- Added query rewriting when the initial retrieval is not relevant.
-- Limited retrieval to a maximum of two attempts.
-- Added handling for cases where no relevant information is found.
-- Tested relevant, poorly phrased, ambiguous, and unrelated questions.
-- Recorded retrieval attempts and similarity scores.
-- Identified borderline retrieval cases for future improvement.
-
-## Self-RAG Flow
-
-User Question  
-↓  
-Qdrant Retrieval  
-↓  
-Relevance Check  
-↓  
-Relevant → Context → Answer  
-↓  
-Not Relevant → Query Rewrite → Retrieval Again  
-↓  
-Still Not Relevant → No Relevant Information
-
-## Technologies Used
-
-- Python
-- FastAPI
-- Streamlit
-- LangGraph
-- Qdrant
-- PyMuPDF
-- RAG
-- Hugging Face Transformers
-- Langfuse
-- Vision Model
-
-## Current Status
-
-The project currently supports PDF ingestion, semantic document retrieval, AI-based question answering, visual processing, Streamlit interaction, and Self-RAG-based retrieval evaluation.
-
-## Project Overview
-
-This project implements a basic PDF ingestion pipeline for a Smart Document Assistant.
-
-The pipeline accepts a PDF document, extracts its text page-by-page, performs basic validation, identifies pages with very little extracted text, and saves the extracted content as a text file.
-
-The pipeline is designed to handle large documents such as financial reports.
-
-## Project Structure
-
-```text
-Project 1/
-├── data/
-│   ├── input/
-│   │   └── finance.pdf
-│   └── output/
-│       └── finance.txt
-├── src/
-│   └── pdf_loader.py
-├── venv/
-├── main.py
-└── README.md
-```
-
-## Technologies Used
-
-* Python
-* PyMuPDF
-
-## Pipeline
-
-```text
-PDF
- ↓
-Input Folder
- ↓
-PDF Validation
- ↓
-Text Extraction
- ↓
-Page-level Metadata
- ↓
-Low-text Page Detection
- ↓
-Text Output
-```
-
-## Features
-
-* Reads PDF files from the input folder
-* Extracts text page-by-page
-* Preserves page numbers
-* Counts characters extracted from each page
-* Detects pages with fewer than 50 characters
-* Handles missing PDF files
-* Validates the PDF file extension
-* Handles errors while opening PDFs
-* Saves extracted text to the output folder
-
-## How to Run
-
-### 1. Activate the virtual environment
-
-On Windows:
+## Run
 
 ```bash
-venv\Scripts\activate
+npm install
+npm run dev
 ```
 
-### 2. Install the dependency
+Then open:
 
-```bash
-pip install pymupdf
+http://localhost:5173
+
+## Backend integration
+
+Create `.env` from `.env.example`:
+
+```env
+VITE_API_BASE_URL=http://127.0.0.1:8000
 ```
 
-### 3. Place the PDF
+The frontend already calls:
 
-Put the PDF you want to process inside:
+- `POST /api/v1/documents/upload`
+- `GET /api/v1/documents/{document_id}/status`
+- `POST /api/v1/chat`
+- `GET /api/v1/chat/{document_id}/history`
+- `GET /api/v1/documents/{document_id}/analytics`
+- `GET /api/v1/documents/{document_id}/images`
 
-```text
-data/input/
-```
+If your group's FastAPI routes use different names, change only the `api()` calls in `src/main.jsx`.
 
-### 4. Update the PDF path
-
-In `main.py`, specify the PDF filename:
-
-```python
-pdf_path = "data/input/finance.pdf"
-```
-
-### 5. Run the pipeline
-
-From the project root:
-
-```bash
-python main.py
-```
-
-### 6. Output
-
-The extracted text is saved in:
-
-```text
-data/output/finance.txt
-```
-
-## Testing
-
-The pipeline was tested using a large financial PDF to verify that it can successfully open the document and extract text page-by-page.
-
-The pipeline also reports pages where fewer than 50 characters of text were extracted. These pages may contain tables, images, scanned content, or very little text.
-
-## Scope
-
-This project focuses only on the **basic PDF ingestion stage**.
-
-It does not currently include:
-
-* OCR
-* Text chunking
-* Embeddings
-* Vector databases
-* Retrieval-Augmented Generation (RAG)
-* AI question answering
+Until those extra analytics/image endpoints are available, the UI falls back gracefully and keeps the rest of the workspace usable.
